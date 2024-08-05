@@ -47,9 +47,9 @@ public class EFQRCodeGenerator: NSObject {
         self[keyPath: keyPath] = newValue
         return self
     }
-
+    
     // MARK: - Content Parameters
-
+    
     /// Content to include in the generated QR Code.
     /// - Important: Limited to at most 1273 characters.
     /// - Note: The density of the QR-lattice increases with the increases of the content length.
@@ -71,7 +71,7 @@ public class EFQRCodeGenerator: NSObject {
         }
         return self
     }
-
+    
     /// Encoding for `content`.
     public var contentEncoding: String.Encoding = .utf8 {
         didSet {
@@ -85,7 +85,7 @@ public class EFQRCodeGenerator: NSObject {
     public func withContentEncoding(_ encoding: String.Encoding) -> EFQRCodeGenerator {
         return with(\.contentEncoding, encoding)
     }
-
+    
     /// Level of error tolerance.
     ///
     /// - L 7%
@@ -104,9 +104,9 @@ public class EFQRCodeGenerator: NSObject {
     public func withInputCorrectionLevel(_ inputCorrectionLevel: EFInputCorrectionLevel) -> EFQRCodeGenerator {
         return with(\.inputCorrectionLevel, inputCorrectionLevel)
     }
-
+    
     // MARK: - Style Parameters
-
+    
     /// Color mode of QR Code, defaults to `nil`.
     public var mode: EFQRCodeMode? = nil {
         didSet {
@@ -120,7 +120,7 @@ public class EFQRCodeGenerator: NSObject {
     public func withMode(_ mode: EFQRCodeMode?) -> EFQRCodeGenerator {
         return with(\.mode, mode)
     }
-
+    
     /// Size of the QR code, defaults to 256 by 256.
     ///
     /// - Note: Will be overridden by non-`nil` `magnification` parameter.
@@ -136,7 +136,7 @@ public class EFQRCodeGenerator: NSObject {
     public func withSize(_ size: EFIntSize) -> EFQRCodeGenerator {
         return with(\.size, size)
     }
-
+    
     /// The ratio of actual size to the smallest possible size, defaults to `nil`.
     ///
     /// - Note: Any non-`nil` value overrides the `size` parameter.
@@ -182,7 +182,7 @@ public class EFQRCodeGenerator: NSObject {
     public func withMagnification(_ magnification: EFIntSize?) -> EFQRCodeGenerator {
         return with(\.magnification, magnification)
     }
-
+    
     /// Background color, defaults to white.
     public var backgroundColor: CGColor = CGColor.white()! {
         didSet {
@@ -195,7 +195,20 @@ public class EFQRCodeGenerator: NSObject {
             imageQRCode = nil
         }
     }
-    #if canImport(CoreImage)
+    
+    private var _foregroundGradient: Any?
+#if canImport(SwiftUI)
+    @available(iOS 13, *)
+    public var foregroundGradient: EFLinearGradient? {
+        get { _foregroundGradient as? EFLinearGradient }
+        set {
+            _foregroundGradient = newValue as Any
+            imageCodes = nil
+        }
+    }
+#endif
+    
+#if canImport(CoreImage)
     /// Sets the generator to use the specified `CIColor`s.
     /// - Parameters:
     ///   - backgroundColor: The background `CIColor`.
@@ -209,8 +222,8 @@ public class EFQRCodeGenerator: NSObject {
         return withColors(backgroundColor: backgroundColor.cgColor() ?? CGColor.white()!,
                           foregroundColor: foregroundColor.cgColor() ?? CGColor.black()!)
     }
-    #endif
-
+#endif
+    
     /// Sets the generator to use the specified `CGColor`s.
     /// - Parameters:
     ///   - backgroundColor: The background `CGColor`.
@@ -223,7 +236,7 @@ public class EFQRCodeGenerator: NSObject {
             .with(\.backgroundColor, backgroundColor)
             .with(\.foregroundColor, foregroundColor)
     }
-
+    
     /// Icon image in the center of QR code image, defaults to `nil`.
     public var icon: CGImage? = nil {
         didSet {
@@ -247,7 +260,7 @@ public class EFQRCodeGenerator: NSObject {
             .with(\.icon, icon)
             .with(\.iconSize, size)
     }
-
+    
     /// Background watermark image, defaults to `nil`.
     public var watermark: CGImage? = nil {
         didSet {
@@ -269,13 +282,13 @@ public class EFQRCodeGenerator: NSObject {
     @discardableResult
     public func withWatermark(_ watermark: CGImage?, mode: EFWatermarkMode? = nil) -> EFQRCodeGenerator {
         self.watermark = watermark
-
+        
         if let mode = mode {
             self.watermarkMode = mode
         }
         return self
     }
-
+    
     /// Foreground point offset, defaults to 0.
     ///
     /// - Important: Generated QR code might be hard to recognize with non-zero values.
@@ -291,7 +304,7 @@ public class EFQRCodeGenerator: NSObject {
     public func withPointOffset(_ pointOffset: CGFloat) -> EFQRCodeGenerator {
         return with(\.pointOffset, pointOffset)
     }
-
+    
     /// If `false` (default), area of watermark where alpha is 0 will be transparent.
     public var isWatermarkOpaque: Bool = false {
         didSet {
@@ -312,7 +325,7 @@ public class EFQRCodeGenerator: NSObject {
     public func withTransparentWatermark(_ isTransparent: Bool = true) -> EFQRCodeGenerator {
         return withOpaqueWatermark(!isTransparent)
     }
-
+    
     /// Style of foreground code points, defaults to `EFPointStyle.square`.
     public var pointStyle: EFPointStyle = EFSquarePointStyle.square {
         didSet {
@@ -326,7 +339,7 @@ public class EFQRCodeGenerator: NSObject {
     public func withPointStyle(_ pointStyle: EFPointStyle) -> EFQRCodeGenerator {
         return with(\.pointStyle, pointStyle)
     }
-
+    
     /// If `true` (default), points for timing pattern will be squares.
     public var isTimingPointStatic: Bool = true {
         didSet {
@@ -349,17 +362,17 @@ public class EFQRCodeGenerator: NSObject {
     public func withStyledTimingPoint(_ ignoreTiming: Bool = true) -> EFQRCodeGenerator {
         return withStaticTimingPoint(!ignoreTiming)
     }
-
+    
     // MARK: - Cache
-
+    
     /*
      The 3 layers that constitutes the final imageQRCode (from top to bottom):
-
+     
      [                    icon (or none)                    ]
      [ frontTransparentQRCodeImage ]     [ frontQRCodeImage ]
      [       watermark image       ]     [       none       ]
      */
-
+    
     /// The code points.
     private var imageCodes: [[Bool]]? {
         didSet {
@@ -385,7 +398,7 @@ public class EFQRCodeGenerator: NSObject {
     }
     
     // MARK: - Init
-
+    
     /// Initialize a QR code generator to generate a QR code of specified of size
     /// for some content with appropriate encoding.
     /// - Parameters:
@@ -400,7 +413,7 @@ public class EFQRCodeGenerator: NSObject {
         self.contentEncoding = encoding
         self.size = size
     }
-
+    
     /// Fetches the final QR code image.
     /// - Returns: the generated QR code, or `nil` if failed.
     public func generate() -> CGImage? {
@@ -409,7 +422,7 @@ public class EFQRCodeGenerator: NSObject {
         }
         return imageQRCode
     }
-
+    
     // MARK: - Draw
     private func createImageQRCode() -> CGImage? {
         var finalSize = self.size
@@ -419,12 +432,12 @@ public class EFQRCodeGenerator: NSObject {
         let finalIconSize = self.iconSize
         let finalWatermark = self.watermark
         let finalWatermarkMode = self.watermarkMode
-
+        
         // Get QRCodes from image
         guard let codes = generateCodes() else {
             return nil
         }
-
+        
         // If magnification is not nil, reset finalSize
         if let tryMagnification = magnification {
             finalSize = EFIntSize(
@@ -432,16 +445,16 @@ public class EFQRCodeGenerator: NSObject {
                 height: tryMagnification.height * codes.count
             )
         }
-
+        
         var result: CGImage?
         if let context = createContext(size: finalSize) {
-
+            
             // Cache size
             minSuitableSize = EFIntSize(
                 width: minSuitableSize(greaterThanOrEqualTo: finalSize.width.cgFloat) ?? finalSize.width,
                 height: minSuitableSize(greaterThanOrEqualTo: finalSize.height.cgFloat) ?? finalSize.height
             )
-
+            
             // Watermark
             if let tryWatermark = finalWatermark {
                 // Draw background with watermark
@@ -465,23 +478,59 @@ public class EFQRCodeGenerator: NSObject {
                     if let tryFrontTransparentQRCodeImage = frontTransparentQRCodeImage {
                         return tryFrontTransparentQRCodeImage
                     }
+#if canImport(SwiftUI)
+                    if #available(iOS 13, *), let foregroundGradient {
+                        frontTransparentQRCodeImage = createTransparentQRCodeImage(
+                            from: codes,
+                            colorBack: finalBackgroundColor,
+                            gradientFront: foregroundGradient,
+                            size: minSuitableSize
+                        )
+                    } else {
+                        frontTransparentQRCodeImage = createTransparentQRCodeImage(
+                            from: codes,
+                            colorBack: finalBackgroundColor,
+                            colorFront: finalForegroundColor,
+                            size: minSuitableSize
+                        )
+                    }
+#else
                     frontTransparentQRCodeImage = createTransparentQRCodeImage(
                         from: codes,
                         colorBack: finalBackgroundColor,
                         colorFront: finalForegroundColor,
                         size: minSuitableSize
                     )
+#endif
                     return frontTransparentQRCodeImage
                 } else {
                     if let tryFrontQRCodeImage = frontQRCodeImage {
                         return tryFrontQRCodeImage
                     }
+#if canImport(SwiftUI)
+                    if #available(iOS 13, *), let foregroundGradient {
+                        frontQRCodeImage = createQRCodeImage(
+                            codes: codes,
+                            colorBack: finalBackgroundColor,
+                            gradientFront: foregroundGradient,
+                            size: minSuitableSize
+                        )
+                    } else {
+                        frontQRCodeImage = createQRCodeImage(
+                            codes: codes,
+                            colorBack: finalBackgroundColor,
+                            colorFront: finalForegroundColor,
+                            size: minSuitableSize
+                        )
+                    }
+#else
                     frontQRCodeImage = createQRCodeImage(
                         codes: codes,
                         colorBack: finalBackgroundColor,
                         colorFront: finalForegroundColor,
                         size: minSuitableSize
                     )
+#endif
                     return frontQRCodeImage
                 }
             }() {
@@ -505,6 +554,11 @@ public class EFQRCodeGenerator: NSObject {
                     finalIconSizeHeight = maxLength
                     print("Warning: icon height too big, it has been changed.")
                 }
+                if tryIcon.width != tryIcon.height {
+                    let max = max(tryIcon.width, tryIcon.height)
+                    finalIconSizeWidth = finalIconSizeWidth * CGFloat(tryIcon.width) / CGFloat(max)
+                    finalIconSizeHeight = finalIconSizeHeight * CGFloat(tryIcon.height) / CGFloat(max)
+                }
                 let iconSize = EFIntSize(width: Int(finalIconSizeWidth), height: Int(finalIconSizeHeight))
                 drawIcon(
                     context: context,
@@ -512,10 +566,10 @@ public class EFQRCodeGenerator: NSObject {
                     size: iconSize
                 )
             }
-
+            
             result = context.makeImage()
         }
-
+        
         // Mode apply
         switch mode {
         case .grayscale?:
@@ -532,10 +586,10 @@ public class EFQRCodeGenerator: NSObject {
         case nil, EFQRCodeMode.none?:
             break
         }
-
+        
         return result
     }
-
+    
     private func getForegroundColor() -> CGColor {
         switch mode {
         case .binarization:
@@ -544,7 +598,7 @@ public class EFQRCodeGenerator: NSObject {
             return foregroundColor
         }
     }
-
+    
     private func getBackgroundColor() -> CGColor {
         switch mode {
         case .binarization:
@@ -553,8 +607,8 @@ public class EFQRCodeGenerator: NSObject {
             return backgroundColor
         }
     }
-
-    #if canImport(CoreImage)
+    
+#if canImport(CoreImage)
     /// Create Colorful QR Image
     private func createQRCodeImage(
         codes: [[Bool]],
@@ -567,8 +621,8 @@ public class EFQRCodeGenerator: NSObject {
         }
         return createQRCodeImage(codes: codes, colorFront: colorCGFront, size: size)
     }
-    #endif
-
+#endif
+    
     private func createQRCodeImage(
         codes: [[Bool]],
         colorBack colorCGBack: CGColor? = nil,
@@ -590,15 +644,15 @@ public class EFQRCodeGenerator: NSObject {
                     let finalX = indexX + 1
                     let finalY = indexY + 1
                     if !((finalX == 7 && finalY == 7)
-                            || (finalX == 7 && finalY == (codeSize - 8))
-                            || (finalX == (codeSize - 8) && finalY == 7)) {
+                         || (finalX == 7 && finalY == (codeSize - 8))
+                         || (finalX == (codeSize - 8) && finalY == 7)) {
                         points.append(CGPoint(x: finalX, y: finalY))
                     }
                 }
             }
         }
-
-
+        
+        
         var result: CGImage?
         if let context = createContext(size: size) {
             // Point
@@ -610,7 +664,7 @@ public class EFQRCodeGenerator: NSObject {
                     let indexYCTM = codeSize - indexX - 1
                     
                     let isStaticPoint = isStatic(x: indexX, y: indexY, size: codeSize, APLPoints: points)
-
+                    
                     drawPoint(
                         context: context,
                         rect: CGRect(
@@ -627,8 +681,90 @@ public class EFQRCodeGenerator: NSObject {
         }
         return result
     }
-
-    #if canImport(CoreImage)
+    
+#if canImport(SwiftUI)
+    @available(iOS 13, *)
+    private func createQRCodeImage(
+        codes: [[Bool]],
+        colorBack colorCGBack: CGColor? = nil,
+        gradientFront colorCGFront: EFLinearGradient,
+        size: EFIntSize
+    ) -> CGImage? {
+        let codeSize = codes.count
+        
+        let scaleX = size.width.cgFloat / CGFloat(codeSize)
+        let scaleY = size.height.cgFloat / CGFloat(codeSize)
+        if scaleX < 1.0 || scaleY < 1.0 {
+            print("Warning: Size too small.")
+        }
+        
+        var points = [CGPoint]()
+        if let locations = getAlignmentPatternLocations(version: getVersion(size: codeSize - 2)) {
+            for indexX in locations {
+                for indexY in locations {
+                    let finalX = indexX + 1
+                    let finalY = indexY + 1
+                    if !((finalX == 7 && finalY == 7)
+                         || (finalX == 7 && finalY == (codeSize - 8))
+                         || (finalX == (codeSize - 8) && finalY == 7)) {
+                        points.append(CGPoint(x: finalX, y: finalY))
+                    }
+                }
+            }
+        }
+        
+        
+        var result: CGImage?
+        if let context = createContext(size: size) {
+            // Point
+            context.setFillColor(CGColor.white()!)
+            for indexY in 0 ..< codeSize {
+                for indexX in 0 ..< codeSize where codes[indexX][indexY] {
+                    // CTM-90
+                    let indexXCTM = indexY
+                    let indexYCTM = codeSize - indexX - 1
+                    
+                    let isStaticPoint = isStatic(x: indexX, y: indexY, size: codeSize, APLPoints: points)
+                    
+                    drawPoint(
+                        context: context,
+                        rect: CGRect(
+                            x: CGFloat(indexXCTM) * scaleX + pointOffset,
+                            y: CGFloat(indexYCTM) * scaleY + pointOffset,
+                            width: scaleX - 2 * pointOffset,
+                            height: scaleY - 2 * pointOffset
+                        ),
+                        isStatic: isStaticPoint
+                    )
+                }
+            }
+            result = context.makeImage()
+        }
+        
+        if let ciImg = result?.ciImage() {
+            let rect = ciImg.extent
+            
+            let gradient = CIFilter.linearGradient()
+            gradient.color0 = colorCGFront.color0
+            gradient.color1 = colorCGFront.color1
+            gradient.point0 = CGPointMake(rect.width * colorCGFront.point0.x, rect.height * colorCGFront.point0.y)
+            gradient.point1 = CGPointMake(rect.width * colorCGFront.point1.x, rect.height * colorCGFront.point1.y)
+            
+            let multiply = CIFilter.multiplyCompositing()
+            multiply.backgroundImage = ciImg
+            multiply.inputImage = gradient.outputImage
+            
+            let ciContext = CIContext()
+            if let output = multiply.outputImage,
+               let cgimg = ciContext.createCGImage(output, from: output.extent) {
+                result = cgimg
+            }
+        }
+        return result
+    }
+#endif
+    
+#if canImport(CoreImage)
     /// Create Colorful QR Image
     private func createTransparentQRCodeImage(
         from codes: [[Bool]],
@@ -641,8 +777,8 @@ public class EFQRCodeGenerator: NSObject {
         else { return nil }
         return createTransparentQRCodeImage(from: codes, colorBack: colorCGBack, colorFront: colorCGFront, size: size)
     }
-    #endif
-
+#endif
+    
     private func createTransparentQRCodeImage(
         from codes: [[Bool]],
         colorBack colorCGBack: CGColor,
@@ -650,20 +786,20 @@ public class EFQRCodeGenerator: NSObject {
         size: EFIntSize
     ) -> CGImage? {
         let codeSize = codes.count
-
+        
         let scaleX = size.width.cgFloat / CGFloat(codeSize)
         let scaleY = size.height.cgFloat / CGFloat(codeSize)
         if scaleX < 1.0 || scaleY < 1.0 {
             print("Warning: Size too small.")
         }
-
+        
         let pointMinOffsetX = scaleX / 3
         let pointMinOffsetY = scaleY / 3
         let pointWidthOriX = scaleX
         let pointWidthOriY = scaleY
         let pointWidthMinX = scaleX - 2 * pointMinOffsetX
         let pointWidthMinY = scaleY - 2 * pointMinOffsetY
-
+        
         // Get AlignmentPatternLocations first
         var points = [CGPoint]()
         if let locations = getAlignmentPatternLocations(version: getVersion(size: codeSize - 2)) {
@@ -672,16 +808,16 @@ public class EFQRCodeGenerator: NSObject {
                     let finalX = indexX + 1
                     let finalY = indexY + 1
                     if !((finalX == 7 && finalY == 7)
-                            || (finalX == 7 && finalY == (codeSize - 8))
-                            || (finalX == (codeSize - 8) && finalY == 7)) {
+                         || (finalX == 7 && finalY == (codeSize - 8))
+                         || (finalX == (codeSize - 8) && finalY == 7)) {
                         points.append(CGPoint(x: finalX, y: finalY))
                     }
                 }
             }
         }
-
+        
         var finalImage: CGImage?
-
+        
         if let context = createContext(size: size) {
             // Back point
             context.setFillColor(colorCGBack)
@@ -745,15 +881,158 @@ public class EFQRCodeGenerator: NSObject {
                     }
                 }
             }
-
+            
             finalImage = context.makeImage()
         }
         return finalImage
     }
     
+#if canImport(SwiftUI)
+    @available(iOS 13, *)
+    private func createTransparentQRCodeImage(
+        from codes: [[Bool]],
+        colorBack colorCGBack: CGColor,
+        gradientFront colorCGFront: EFLinearGradient,
+        size: EFIntSize
+    ) -> CGImage? {
+        let codeSize = codes.count
+        
+        let scaleX = size.width.cgFloat / CGFloat(codeSize)
+        let scaleY = size.height.cgFloat / CGFloat(codeSize)
+        if scaleX < 1.0 || scaleY < 1.0 {
+            print("Warning: Size too small.")
+        }
+        
+        let pointMinOffsetX = scaleX / 3
+        let pointMinOffsetY = scaleY / 3
+        let pointWidthOriX = scaleX
+        let pointWidthOriY = scaleY
+        let pointWidthMinX = scaleX - 2 * pointMinOffsetX
+        let pointWidthMinY = scaleY - 2 * pointMinOffsetY
+        
+        // Get AlignmentPatternLocations first
+        var points = [CGPoint]()
+        if let locations = getAlignmentPatternLocations(version: getVersion(size: codeSize - 2)) {
+            for indexX in locations {
+                for indexY in locations {
+                    let finalX = indexX + 1
+                    let finalY = indexY + 1
+                    if !((finalX == 7 && finalY == 7)
+                         || (finalX == 7 && finalY == (codeSize - 8))
+                         || (finalX == (codeSize - 8) && finalY == 7)) {
+                        points.append(CGPoint(x: finalX, y: finalY))
+                    }
+                }
+            }
+        }
+        
+        var frontImage: CIImage?
+        var backImage: CIImage?
+        var finalImage: CGImage?
+        
+        if let context = createContext(size: size) {
+            // Front point
+            context.setFillColor(CGColor(red: 1, green: 1, blue: 1, alpha: 1))
+            for indexY in 0 ..< codeSize {
+                for indexX in 0 ..< codeSize where codes[indexX][indexY] {
+                    // CTM-90
+                    let indexXCTM = indexY
+                    let indexYCTM = codeSize - indexX - 1
+                    if isStatic(x: indexX, y: indexY, size: codeSize, APLPoints: points) {
+                        drawPoint(
+                            context: context,
+                            rect: CGRect(
+                                x: CGFloat(indexXCTM) * scaleX + pointOffset,
+                                y: CGFloat(indexYCTM) * scaleY + pointOffset,
+                                width: pointWidthOriX - 2 * pointOffset,
+                                height: pointWidthOriY - 2 * pointOffset
+                            ),
+                            isStatic: true
+                        )
+                    } else {
+                        drawPoint(
+                            context: context,
+                            rect: CGRect(
+                                x: CGFloat(indexXCTM) * scaleX + pointMinOffsetX,
+                                y: CGFloat(indexYCTM) * scaleY + pointMinOffsetY,
+                                width: pointWidthMinX,
+                                height: pointWidthMinY
+                            )
+                        )
+                    }
+                }
+            }
+            
+            frontImage = context.makeImage()?.ciImage()
+        }
+        
+        if let context = createContext(size: size) {
+            // Back point
+            context.setFillColor(colorCGBack)
+            for indexY in 0 ..< codeSize {
+                for indexX in 0 ..< codeSize where !codes[indexX][indexY] {
+                    // CTM-90
+                    let indexXCTM = indexY
+                    let indexYCTM = codeSize - indexX - 1
+                    if isStatic(x: indexX, y: indexY, size: codeSize, APLPoints: points) {
+                        drawPoint(
+                            context: context,
+                            rect: CGRect(
+                                x: CGFloat(indexXCTM) * scaleX,
+                                y: CGFloat(indexYCTM) * scaleY,
+                                width: pointWidthOriX,
+                                height: pointWidthOriY
+                            ),
+                            isStatic: true
+                        )
+                    } else {
+                        drawPoint(
+                            context: context,
+                            rect: CGRect(
+                                x: CGFloat(indexXCTM) * scaleX + pointMinOffsetX,
+                                y: CGFloat(indexYCTM) * scaleY + pointMinOffsetY,
+                                width: pointWidthMinX,
+                                height: pointWidthMinY
+                            )
+                        )
+                    }
+                }
+            }
+            
+            backImage = context.makeImage()?.ciImage()
+        }
+        
+        if let frontImage, let backImage {
+            let rect = frontImage.extent
+            
+            let gradient = CIFilter.linearGradient()
+            gradient.color0 = colorCGFront.color0
+            gradient.color1 = colorCGFront.color1
+            gradient.point0 = CGPointMake(rect.width * colorCGFront.point0.x, rect.height * colorCGFront.point0.y)
+            gradient.point1 = CGPointMake(rect.width * colorCGFront.point1.x, rect.height * colorCGFront.point1.y)
+            
+            let multiply = CIFilter.multiplyCompositing()
+            multiply.backgroundImage = frontImage
+            multiply.inputImage = gradient.outputImage
+            
+            let addition = CIFilter.additionCompositing()
+            addition.backgroundImage = backImage
+            addition.inputImage = multiply.outputImage
+            
+            let ciContext = CIContext()
+            if let output = addition.outputImage,
+               let cgimg = ciContext.createCGImage(output, from: output.extent) {
+                finalImage = cgimg
+            }
+        }
+        
+        return finalImage
+    }
+#endif
+    
     // MARK: - Pre
     
-    #if canImport(CoreImage)
+#if canImport(CoreImage)
     private func drawWatermarkImage(
         context: CGContext,
         image: CGImage,
@@ -765,8 +1044,8 @@ public class EFQRCodeGenerator: NSObject {
                            colorBack: colorBack.cgColor(),
                            mode: mode, size: size)
     }
-    #endif
-
+#endif
+    
     private func drawWatermarkImage(
         context: CGContext,
         image: CGImage,
@@ -785,7 +1064,6 @@ public class EFQRCodeGenerator: NSObject {
             }
             if let tryCGImage = createQRCodeImage(
                 codes: codes,
-                colorBack: getBackgroundColor(),
                 colorFront: getForegroundColor(),
                 size: minSuitableSize
             ) {
@@ -799,7 +1077,7 @@ public class EFQRCodeGenerator: NSObject {
         )
         context.draw(image, in: imageRect)
     }
-
+    
     private func drawIcon(context: CGContext, icon: CGImage, size: EFIntSize) {
         context.draw(
             icon,
@@ -816,7 +1094,7 @@ public class EFQRCodeGenerator: NSObject {
     private func drawPoint(context: CGContext, rect: CGRect, isStatic: Bool = false) {
         pointStyle.fillRect(context: context, rect: rect, isStatic: isStatic)
     }
-
+    
     private func createContext(size: EFIntSize) -> CGContext? {
         return CGContext(
             data: nil, width: size.width, height: size.height,
@@ -824,54 +1102,54 @@ public class EFQRCodeGenerator: NSObject {
             bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
         )
     }
-
+    
     // MARK: - Data
     
-    #if canImport(CoreImage)
+#if canImport(CoreImage)
     private func getPixels() -> [[EFUIntPixel]]? {
         guard let finalContent = content else {
             return nil
         }
         let finalInputCorrectionLevel = inputCorrectionLevel
         let finalContentEncoding = contentEncoding
-
+        
         guard let tryQRImagePixels = CIImage
-                .generateQRCode(
-                    finalContent, using: finalContentEncoding,
-                    inputCorrectionLevel: finalInputCorrectionLevel
-                )?
-                .cgImage()?
-                .pixels()
+            .generateQRCode(
+                finalContent, using: finalContentEncoding,
+                inputCorrectionLevel: finalInputCorrectionLevel
+            )?
+            .cgImage()?
+            .pixels()
         else {
             print("Warning: Content too large.")
             return nil
         }
         return tryQRImagePixels
     }
-    #endif
-
+#endif
+    
     /// Get QRCodes from pixels.
     private func getCodes(pixels: [[EFUIntPixel]]) -> [[Bool]] {
         return pixels.map { $0.map { pixel in
             pixel.red == 0 && pixel.green == 0 && pixel.blue == 0
         } }
     }
-
+    
     /// Get QRCodes from pixels.
     private func generateCodes() -> [[Bool]]? {
         if let tryImageCodes = imageCodes {
             return tryImageCodes
         }
-
+        
         func fetchPixels() -> [[Bool]]? {
-            #if canImport(CoreImage)
+#if canImport(CoreImage)
             // Get pixels from image
             guard let tryQRImagePixels = getPixels() else {
                 return nil
             }
             // Get QRCodes from image
             return getCodes(pixels: tryQRImagePixels)
-            #else
+#else
             let level = inputCorrectionLevel.qrErrorCorrectLevel
             return content.flatMap {
                 try? QRCode($0, encoding: contentEncoding,
@@ -879,41 +1157,41 @@ public class EFQRCodeGenerator: NSObject {
                 )
                 .imageCodes
             }
-            #endif
+#endif
         }
-
+        
         imageCodes = fetchPixels()
         return imageCodes
     }
-
+    
     /// Special Points of QRCode
     private func isStatic(x: Int, y: Int, size: Int, APLPoints: [CGPoint]) -> Bool {
         // Empty border
         if x == 0 || y == 0 || x == (size - 1) || y == (size - 1) {
             return true
         }
-
+        
         // Finder Patterns
         if (x <= 8 && y <= 8) || (x <= 8 && y >= (size - 9)) || (x >= (size - 9) && y <= 8) {
             return true
         }
-
+        
         if isTimingPointStatic {
             // Timing Patterns
             if x == 7 || y == 7 {
                 return true
             }
         }
-
+        
         // Alignment Patterns
         return APLPoints.contains { point in
             x >= Int(point.x - 2)
-                && x <= Int(point.x + 2)
-                && y >= Int(point.y - 2)
-                && y <= Int(point.y + 2)
+            && x <= Int(point.x + 2)
+            && y >= Int(point.y - 2)
+            && y <= Int(point.y + 2)
         }
     }
-
+    
     /// [Alignment Pattern Locations](
     /// http://stackoverflow.com/questions/13238704/calculating-the-position-of-qr-code-alignment-patterns
     /// )
@@ -925,30 +1203,30 @@ public class EFQRCodeGenerator: NSObject {
         let size = getSize(version: version)
         let total_dist = size - 7 - 6
         let divisor = 2 * (divs - 1)
-
+        
         // Step must be even, for alignment patterns to agree with timing patterns
         let step = (total_dist + divisor / 2 + 1) / divisor * 2 // Get the rounding right
         var coords = [6]
-
+        
         // divs-2 down to 0, inclusive
         coords += ( 0...(divs - 2) ).map { i in
             size - 7 - (divs - 2 - i) * step
         }
         return coords
     }
-
+    
     /// QRCode version.
     private func getVersion(size: Int) -> Int {
         return (size - 21) / 4 + 1
     }
-
+    
     /// QRCode size.
     private func getSize(version: Int) -> Int {
         return 17 + 4 * version
     }
-
+    
     // MARK: - Recommended Magnification
-
+    
     /// Calculates and returns the magnification such that multiplied to intrinsic size  >= the given size.
     /// - Parameter size: Desired final size of generated QR code.
     /// - Returns: The recommended value to set as a side of `magnification`.
@@ -957,7 +1235,7 @@ public class EFQRCodeGenerator: NSObject {
             return nil
         }
         let finalWatermark = watermark
-
+        
         let baseMagnification = max(1, Int(size / CGFloat(codes.count)))
         for offset in 0 ... 3 {
             let tempMagnification = baseMagnification + offset
@@ -971,7 +1249,7 @@ public class EFQRCodeGenerator: NSObject {
         }
         return nil
     }
-
+    
     /// Calculates and returns the magnification such that multiplied to intrinsic size  <= the given size.
     /// - Parameter size: Desired final size of generated QR code.
     /// - Returns: The recommended value to set as a side of `magnification`.
@@ -980,7 +1258,7 @@ public class EFQRCodeGenerator: NSObject {
             return nil
         }
         let finalWatermark = watermark
-
+        
         let baseMagnification = max(1, Int(size / CGFloat(codes.count)))
         for offset in [0, -1, -2, -3] {
             let tempMagnification = baseMagnification + offset
@@ -997,13 +1275,13 @@ public class EFQRCodeGenerator: NSObject {
         }
         return nil
     }
-
+    
     /// Calculate suitable size.
     private func minSuitableSize(greaterThanOrEqualTo size: CGFloat) -> Int? {
         guard let codes = generateCodes() else {
             return nil
         }
-
+        
         let baseSuitableSize = Int(size)
         for offset in codes.indices {
             let tempSuitableSize = baseSuitableSize + offset
@@ -1014,3 +1292,23 @@ public class EFQRCodeGenerator: NSObject {
         return nil
     }
 }
+
+#if canImport(SwiftUI)
+import SwiftUI
+@available(iOS 13, *)
+public struct EFLinearGradient {
+    
+    private(set) var color0: CIColor
+    private(set) var color1: CIColor
+    private(set) var point0: UnitPoint
+    private(set) var point1: UnitPoint
+    
+    public init(color0: CIColor, color1: CIColor, point0: UnitPoint, point1: UnitPoint) {
+        self.color0 = color0
+        self.color1 = color1
+        self.point0 = UnitPoint(x: point0.x, y: 1 - point0.y)
+        self.point1 = UnitPoint(x: point1.x, y: 1 - point1.y)
+    }
+    
+}
+#endif
